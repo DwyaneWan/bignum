@@ -118,7 +118,7 @@ public class Bignum {
                 operands.push(stackToIntArray(intRecorder));
                 nonzeroShowed = 0;
             }
-            intRecorder.push(input[i] - '0'); //Recording the digits of an integer in form of int[].
+            intRecorder.push(input[i]); //Recording the digits of an integer in form of int[].
 
             //When read an operator:
             if (operator.indexOf(input[i]) >= 0) {
