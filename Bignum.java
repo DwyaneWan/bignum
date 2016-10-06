@@ -32,12 +32,20 @@ public class Bignum {
     }
 
     private static int[] stackToIntArray(Stack<Integer> intRecorder) {
-        //Convert a Stack<Integer> to an int[] to represent an integer, with digits in reversed order.
-        //Empty the Stack.
-        return new int[0];
+        /*Convert a Stack<Integer> to an int[] to represent an integer, with digits in reversed order.
+        Empty the Stack. */
+        int[] integer = new int[intRecorder.size()];
+//        for (int i = 0; i < integer.length; i++){
+//            integer[i] = intRecorder.pop();
+//        }
+        int i = 0;
+        while (!intRecorder.isEmpty()) {
+            integer[i++] = intRecorder.pop();
+        }
+        return integer;
     }
 
-    private static String toNormalString(int[] x){
+    private static String intArrayToNormalString(int[] x){
         for (int i = 0; i < x.length / 2; i++) {
             int temp = x[i];
             x[i] = x[x.length - 1 - i];
@@ -60,15 +68,16 @@ public class Bignum {
             longer[i] += shorter[i];
 
             // dealing with carry
-            if (longer[i] >= 10){
-                longer[i] -= 10;
-                if (i == longer.length-1){
+            int j = i;
+            while (longer[j] >= 10){
+                longer[j] -= 10;
+                if (j == longer.length-1) {
                     longer = Arrays.copyOf(longer, longer.length + 1);
                     longer[longer.length - 1] = 1;
-                    }
-                else{
-                    longer[i+1] += 1;
+                    break;
                 }
+                longer[j+1] += 1;
+                j++;
             }
         }
         return  longer;
@@ -76,91 +85,111 @@ public class Bignum {
 
     private static int[] multiplication(int[] x, int[] y){
 
-        //Implement multiplication.
-        int[] longer = (x.length >= y.length)? x : y;
-        int[] shorter = (x.length < y.length)? x : y;
         //Use each digit of the shorter to times the longer, and combine the results.
         //Do addition recursively.
-        int[] result = new int[0];
-        int digit = 0;
-        while (shorter != new int[shorter.length]){
-            while (shorter[digit] != 0){
-                shorter[digit] --;
-                result = addition(result,longer);
+        int[] longer = (x.length >= y.length)? x : y;
+        int[] shorter = (x.length < y.length)? x : y;
+        int[] result = new int[longer.length];
+        //i loop goes through all digits of shorter from high to low order.
+        for (int i = shorter.length-1; i>= 0; i--){
+            // subResult stores the product of longer and the ith digit of shorter, times 10^i.
+            int[] subResult = new int[longer.length+i];
+            //j loop processes the multiplication.
+            for (int j = 0; j < longer.length; j++){
+                subResult[j+i] += shorter[i] * longer[j];
+                //Deal with carry.
+                if (subResult[j+i] >= 10){
+                    int carry = subResult[j+i] / 10;
+                    subResult[j+i] %= 10;
+                    //Check if need to expand the size of subResult.
+                    if (j+i+1 >= subResult.length) subResult = Arrays.copyOf(subResult,subResult.length+1);
+                    subResult[j+i+1] += carry;
+                }
             }
-
+            //Sum up the sub-results to get the final product.
+            result = addition(result, subResult);
         }
-
-        return new int[0];
+        return result;
     }
 
     private static int[] power(int[] x, int[] y) {
-        return new int[0];
+        int exponent = 0;
+        int[] result = x;
+        for (int i = 0; i < y.length; i++) exponent += y[i] * 10 ^ i;
+        while (exponent >= 2){
+            result = multiplication(result, x);
+            exponent--;
+        }
+        if (exponent == 0) {
+            int [] res = new int[1];
+            res[0] = 1;
+            result = res;
+        }
+        return result;
     }
 
 
 
     public static void main(String[] args) throws IOException {
-        char[] input = readFile("input.txt");
+        char[] input = readFile("input.txt"); //Get the input string and present it as a char[].
 
         Expression expression = new Expression();
         Stack<int[]> operands = new Stack<>();
-        Stack<Integer> intRecorder = new Stack<Integer>();
+        Stack<Integer> intRecorder = new Stack<>();
         String operator = "+*^";
         int nonzeroShowed = 0;
         String result;
+
         for (int i = 0; i < input.length; i++) {
-            if (input[i] == '0' & nonzeroShowed == 0) continue; //omit the leading 0s of a number
+            //omit the leading 0s of a number
+            if (input[i] == '0' && nonzeroShowed == 0 && i < input.length-1 && input[i+1] != ' ')
+                continue;
             if (input[i] != '0' & nonzeroShowed == 0)
                 nonzeroShowed++; //stop omitting 0s when the first non-zero digit appears
             if ((input[i] == ' ' | input[i] == '\n') & !intRecorder.empty()) {
-                //End recording when a space or break line is encountered., and store this integer into the stack of operands.
+                /*End recording when a space or break line is encountered,
+                and store this integer into the stack of operands.*/
                 operands.push(stackToIntArray(intRecorder));
                 nonzeroShowed = 0;
             }
-            intRecorder.push(input[i]); //Recording the digits of an integer in form of int[].
+            intRecorder.push(input[i] - '0'); //Recording the digits of an integer in form of int[].
 
             //When read an operator:
             if (operator.indexOf(input[i]) >= 0) {
-                // Add braces and increase the order if the order of the existing expression is lower than the current operator.
+                /* Add braces and increase the order if the order of the existing expression
+                is lower than the current operator. */
                 if (operator.indexOf(input[i]) > expression.order && !Objects.equals(expression.exp, "")) {
                     expression.exp = "(" + expression.exp + ")";
                     expression.order = operator.indexOf(input[i]);
                 }
                 //Update the existing expression.
-                int[] lastOperand = operands.pop();
-                int[] penultOperand = operands.pop();
-                if (!Objects.equals(expression.exp, "")) expression.exp += input[i] + toNormalString(lastOperand);
+                int[] topOperand = operands.pop();
+                int[] secondTopOperand = operands.pop();
+                if (!Objects.equals(expression.exp, "")) expression.exp += input[i] + intArrayToNormalString(topOperand);
                 if (!Objects.equals(expression.exp, "")) {
-                    expression.exp = toNormalString(penultOperand) + input[i] + toNormalString(lastOperand);
+                    expression.exp = intArrayToNormalString(secondTopOperand) + input[i] + intArrayToNormalString(topOperand);
                 }
                 //Do the corresponding operation and return the result to the stack of operands.
                 if (input[i] == '+') {
-                    int[] mulResult = addition(lastOperand, penultOperand);
-                    operands.push(mulResult);
+                    int[] addResult = addition(secondTopOperand, topOperand);
+                    operands.push(addResult);
                 }
                 else if (input[i] == '*') {
-                    int[] mulResult = multiplication(lastOperand, penultOperand);
+                    int[] mulResult = multiplication(secondTopOperand, topOperand);
                     operands.push(mulResult);
                 }
                 else {
-                    int[] powResult = power(lastOperand, penultOperand);
+                    int[] powResult = power(secondTopOperand, topOperand);
                     operands.push(powResult);
                 }
             }
-
-
-            if (input[i] == '\n' & input[i - 1] == '\n') {
-                result = toNormalString(operands.pop());
+            /* Output the result the an expression when two line break encountered,
+            or the last char of the input reached. */
+            if (i >= input.length-1 || (input[i] == '\n' && input[i - 1] == '\n')) {
+                result = intArrayToNormalString(operands.pop());
                 System.out.println(expression.exp + " = " + result);
                 expression.exp = "";
             }
         }
-        System.out.println(toNormalString(new int[]{3, 2, 1}));
-        System.out.println(input);
-        System.out.println(input[8]);
-        System.out.println(Arrays.toString(addition(new int[]{5, 6, 7}, new int[]{9, 8, 7})));
-
     }
-
 }
